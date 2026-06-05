@@ -1,10 +1,33 @@
 import { api, type ApiResponse } from '@/lib/api'
 import type {
+  GlobalLessonListItem,
+  GlobalLessonsQuery,
   Lesson,
   LessonListItem,
   LessonOrderItem,
   LessonPayload,
 } from '@/features/lessons/types'
+import type { PageResponse } from '@/features/courses/types'
+
+export async function listGlobalLessons(query: GlobalLessonsQuery) {
+  const response = await api.get<ApiResponse<PageResponse<GlobalLessonListItem>>>(
+    '/api/v1/lessons',
+    {
+      params: {
+        keyword: query.keyword || undefined,
+        courseId: query.courseId,
+        status: query.status || undefined,
+        hasAudio: query.hasAudio,
+        hasVideo: query.hasVideo,
+        hasSubtitle: query.hasSubtitle,
+        page: query.page,
+        size: query.size,
+      },
+    },
+  )
+
+  return response.data.data
+}
 
 export async function listLessonsByCourse(courseId: number) {
   const response = await api.get<ApiResponse<LessonListItem[]>>(

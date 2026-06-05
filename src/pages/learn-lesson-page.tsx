@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { getCourse } from '@/features/courses/course-api'
 import { createFileAccessUrl } from '@/features/files/file-api'
 import { getLesson } from '@/features/lessons/lesson-api'
+import { MarkdownPreview } from '@/features/lessons/markdown-preview'
 import {
   completeLesson,
   getMyCourseProgress,
@@ -126,9 +127,7 @@ export function LearnLessonPage() {
               <p className="text-sm text-muted-foreground">Loading lesson...</p>
             ) : lesson && currentProgress ? (
               <>
-                {lesson.description ? (
-                  <p className="text-sm text-muted-foreground">{lesson.description}</p>
-                ) : null}
+                <MarkdownPreview markdown={lesson.contentMarkdown ?? lesson.description} />
                 {videoUrlQuery.data?.url ? (
                   <video
                     className="max-h-[520px] w-full rounded-lg border bg-black"

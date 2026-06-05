@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { getCourse } from '@/features/courses/course-api'
 import { createFileAccessUrl } from '@/features/files/file-api'
 import { getLesson } from '@/features/lessons/lesson-api'
+import { MarkdownPreview } from '@/features/lessons/markdown-preview'
 import type { Lesson } from '@/features/lessons/types'
 import {
   completeLesson,
@@ -211,9 +212,7 @@ function LessonPlayer({
 }) {
   return (
     <div className="grid gap-4">
-      {lesson.description ? (
-        <p className="text-sm text-muted-foreground">{lesson.description}</p>
-      ) : null}
+      <MarkdownPreview markdown={lesson.contentMarkdown ?? lesson.description} />
       {videoUrl ? (
         <video className="max-h-96 w-full rounded-lg border bg-black" controls src={videoUrl}>
           {subtitleUrl ? <track kind="subtitles" src={subtitleUrl} /> : null}

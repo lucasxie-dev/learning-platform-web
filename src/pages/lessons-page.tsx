@@ -47,6 +47,7 @@ import { FileAssetCard } from '@/features/files/file-asset-card'
 import { FileUploadField } from '@/features/files/file-upload-field'
 import type { FileAssetType } from '@/features/files/types'
 import { getApiErrorMessage } from '@/lib/api'
+import { WorkspaceLayout } from '@/components/layout/workspace-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -110,16 +111,27 @@ export function LessonsPage() {
   const user = currentUserQuery.data
   const course = courseQuery.data
   const lessons = lessonsQuery.data ?? []
+  const roles = user?.roles ?? []
+  const permissions = user?.permissions ?? []
+  const isAdmin = roles.includes('ADMIN')
+  const isTeacher = roles.includes('TEACHER')
+  const canLearn = roles.includes('STUDENT')
+  const canManageCourses =
+    isAdmin ||
+    isTeacher ||
+    permissions.some((permission) => permission.startsWith('course:'))
+  const manageLabel = isAdmin
+    ? 'Courses'
+    : isTeacher
+      ? 'My Courses'
+      : 'Courses'
   const canManageLessons = useMemo(() => {
-    const roles = user?.roles ?? []
-    const permissions = user?.permissions ?? []
-
     return (
       roles.includes('ADMIN') ||
       (roles.includes('TEACHER') && course?.ownerId === user?.id) ||
       permissions.some((permission) => ['course:update', 'course:publish', 'course:delete'].includes(permission))
     )
-  }, [course?.ownerId, user])
+  }, [course?.ownerId, permissions, roles, user?.id])
   const canCreateLessons = canManageLessons && course?.status !== 'ARCHIVED'
   const canBindLessonMedia = canManageLessons && course?.status !== 'ARCHIVED'
 
@@ -225,51 +237,29 @@ export function LessonsPage() {
   }
 
   return (
-    <main className="min-h-svh bg-muted/30">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div>
-            <div className="mb-1">
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/courses">
-                  <ArrowLeftIcon />
-                  Courses
-                </Link>
-              </Button>
-            </div>
-            <h1 className="text-lg font-semibold">{course?.title ?? 'Course lessons'}</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage lesson order, draft state, and publication workflow.
-            </p>
-          </div>
-          {canCreateLessons ? (
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <PlusIcon />
-                  New lesson
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Create lesson</DialogTitle>
-                  <DialogDescription>
-                    New lessons start as drafts. Publishing requires the course to be published.
-                  </DialogDescription>
-                </DialogHeader>
-                <LessonForm
-                  isSubmitting={createMutation.isPending}
-                  onSubmit={(payload) => createMutation.mutate(payload)}
-                />
-              </DialogContent>
-            </Dialog>
-          ) : null}
+    <WorkspaceLayout
+      user={user}
+      title={course?.title ? `Lessons · ${course.title}` : 'Course lessons'}
+      description="Manage lesson order, draft state, media, and publication workflow."
+      activeItem="lessons"
+      canManageCourses={canManageCourses}
+      canLearn={canLearn}
+      manageLabel={manageLabel}
+      lessonsHref={Number.isFinite(courseId) ? `/courses/${courseId}/lessons` : '/courses'}
+      progressHref="/me/courses"
+    >
+      <div className="grid gap-5">
+        <div>
+          <Button className="rounded-xl" variant="ghost" size="sm" asChild>
+            <Link to="/courses">
+              <ArrowLeftIcon />
+              Courses
+            </Link>
+          </Button>
         </div>
-      </header>
 
-      <div className="mx-auto grid max-w-6xl gap-4 px-4 py-6">
-        <Card>
-          <CardHeader className="gap-3 md:grid-cols-[1fr_auto]">
+        <Card className="rounded-3xl border-slate-200/80 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.06)]">
+          <CardHeader className="gap-4 md:grid md:grid-cols-[1fr_auto] md:items-center">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <ListOrderedIcon className="size-4" />
@@ -281,6 +271,7 @@ export function LessonsPage() {
             </div>
             {canManageLessons ? (
               <Button
+                className="rounded-xl"
                 variant="outline"
                 disabled={!Object.keys(draftOrders).length || reorderMutation.isPending}
                 onClick={() => reorderMutation.mutate()}
@@ -290,13 +281,37 @@ export function LessonsPage() {
               </Button>
             ) : null}
           </CardHeader>
-          <CardContent>
+          <CardContent className="grid gap-5">
+            {canCreateLessons ? (
+              <div className="flex justify-end">
+                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="rounded-xl">
+                      <PlusIcon />
+                      New lesson
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-5xl">
+                    <DialogHeader>
+                      <DialogTitle>Create lesson</DialogTitle>
+                      <DialogDescription>
+                        New lessons start as drafts. Publishing requires the course to be published.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <LessonForm
+                      isSubmitting={createMutation.isPending}
+                      onSubmit={(payload) => createMutation.mutate(payload)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            ) : null}
             {lessonsQuery.isLoading ? (
-              <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+              <div className="rounded-2xl border bg-slate-50 p-6 text-sm text-slate-500">
                 Loading lessons...
               </div>
             ) : lessonsQuery.isError ? (
-              <div className="rounded-lg border border-destructive/30 bg-background p-6 text-sm text-destructive">
+              <div className="rounded-2xl border border-destructive/30 bg-background p-6 text-sm text-destructive">
                 Unable to load lessons.
               </div>
             ) : lessons.length ? (
@@ -313,7 +328,7 @@ export function LessonsPage() {
                 onDelete={(lessonId) => deleteMutation.mutate(lessonId)}
               />
             ) : (
-              <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+              <div className="rounded-2xl border bg-slate-50 p-6 text-sm text-slate-500">
                 No lessons found.
               </div>
             )}
@@ -322,7 +337,7 @@ export function LessonsPage() {
       </div>
 
       <Dialog open={Boolean(editingLesson)} onOpenChange={(open) => !open && setEditingLesson(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>Edit lesson</DialogTitle>
             <DialogDescription>
@@ -427,7 +442,7 @@ export function LessonsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </main>
+    </WorkspaceLayout>
   )
 }
 
@@ -455,112 +470,114 @@ function LessonsTable({
   onDelete: (lessonId: number) => void
 }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-24">Order</TableHead>
-          <TableHead>Lesson</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Duration</TableHead>
-          <TableHead>Updated</TableHead>
-          {canManageLessons ? <TableHead className="text-right">Actions</TableHead> : null}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {lessons.map((lesson) => (
-          <TableRow key={lesson.id}>
-            <TableCell>
-              {canManageLessons ? (
-                <div className="flex items-center gap-2">
-                  <GripVerticalIcon className="size-4 text-muted-foreground" />
-                  <Input
-                    className="w-16"
-                    min={0}
-                    type="number"
-                    value={draftOrders[lesson.id] ?? lesson.sortOrder}
-                    onChange={(event) => onOrderChange(lesson.id, event.target.value)}
-                  />
-                </div>
-              ) : (
-                lesson.sortOrder
-              )}
-            </TableCell>
-            <TableCell className="whitespace-normal">
-              <div className="font-medium">{lesson.title}</div>
-              <div className="text-xs text-muted-foreground">#{lesson.id}</div>
-            </TableCell>
-            <TableCell>
-              <StatusBadge status={lesson.status} />
-            </TableCell>
-            <TableCell>{formatDuration(lesson.durationSeconds)}</TableCell>
-            <TableCell>{formatDate(lesson.updatedAt)}</TableCell>
-            {canManageLessons ? (
-              <TableCell>
-                <div className="flex justify-end gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={!canBindLessonMedia}
-                    onClick={() => onUploadMedia(lesson)}
-                    title="Upload media"
-                  >
-                    <UploadIcon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={lesson.status === 'PUBLISHED'}
-                    onClick={() => onEdit(lesson.id)}
-                    title="Edit"
-                  >
-                    <EditIcon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={lesson.status === 'PUBLISHED'}
-                    onClick={() => onPublish(lesson.id)}
-                    title="Publish"
-                  >
-                    <CheckCircle2Icon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={lesson.status !== 'PUBLISHED'}
-                    onClick={() => onArchive(lesson.id)}
-                    title="Archive"
-                  >
-                    <ArchiveIcon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => onDelete(lesson.id)}
-                    title="Delete"
-                  >
-                    <Trash2Icon />
-                  </Button>
-                </div>
-              </TableCell>
-            ) : null}
+    <div className="overflow-hidden rounded-2xl border border-slate-200">
+      <Table>
+        <TableHeader className="bg-slate-50">
+          <TableRow>
+            <TableHead className="w-24 font-semibold text-slate-600">Order</TableHead>
+            <TableHead className="font-semibold text-slate-600">Lesson</TableHead>
+            <TableHead className="font-semibold text-slate-600">Status</TableHead>
+            <TableHead className="font-semibold text-slate-600">Duration</TableHead>
+            <TableHead className="font-semibold text-slate-600">Updated</TableHead>
+            {canManageLessons ? <TableHead className="text-right font-semibold text-slate-600">Actions</TableHead> : null}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {lessons.map((lesson) => (
+            <TableRow key={lesson.id} className="hover:bg-blue-50/40">
+              <TableCell className="py-4">
+                {canManageLessons ? (
+                  <div className="flex items-center gap-2">
+                    <GripVerticalIcon className="size-4 text-slate-400" />
+                    <Input
+                      className="h-9 w-16 rounded-xl border-slate-200 bg-slate-50 text-center shadow-none"
+                      min={0}
+                      type="number"
+                      value={draftOrders[lesson.id] ?? lesson.sortOrder}
+                      onChange={(event) => onOrderChange(lesson.id, event.target.value)}
+                    />
+                  </div>
+                ) : (
+                  lesson.sortOrder
+                )}
+              </TableCell>
+              <TableCell className="whitespace-normal py-4">
+                <div className="font-semibold text-slate-950">{lesson.title}</div>
+                <div className="mt-1 text-xs text-slate-500">#{lesson.id}</div>
+              </TableCell>
+              <TableCell>
+                <StatusBadge status={lesson.status} />
+              </TableCell>
+              <TableCell className="text-slate-600">{formatDuration(lesson.durationSeconds)}</TableCell>
+              <TableCell className="text-slate-600">{formatDate(lesson.updatedAt)}</TableCell>
+              {canManageLessons ? (
+                <TableCell>
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={!canBindLessonMedia}
+                      onClick={() => onUploadMedia(lesson)}
+                      title="Upload media"
+                    >
+                      <UploadIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={lesson.status === 'PUBLISHED'}
+                      onClick={() => onEdit(lesson.id)}
+                      title="Edit"
+                    >
+                      <EditIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={lesson.status === 'PUBLISHED'}
+                      onClick={() => onPublish(lesson.id)}
+                      title="Publish"
+                    >
+                      <CheckCircle2Icon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={lesson.status !== 'PUBLISHED'}
+                      onClick={() => onArchive(lesson.id)}
+                      title="Archive"
+                    >
+                      <ArchiveIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => onDelete(lesson.id)}
+                      title="Delete"
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </div>
+                </TableCell>
+              ) : null}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 
 function StatusBadge({ status }: { status: LessonStatus }) {
   if (status === 'PUBLISHED') {
-    return <Badge>Published</Badge>
+    return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Published</Badge>
   }
 
   if (status === 'ARCHIVED') {
-    return <Badge variant="secondary">Archived</Badge>
+    return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Archived</Badge>
   }
 
-  return <Badge variant="outline">Draft</Badge>
+  return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">Draft</Badge>
 }
 
 function formatDuration(seconds: number | null) {

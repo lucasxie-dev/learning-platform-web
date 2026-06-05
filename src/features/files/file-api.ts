@@ -1,10 +1,33 @@
 import { api, type ApiResponse } from '@/lib/api'
 import type {
+  FileAssetListItem,
+  FileAssetsQuery,
   FileAccessUrlResponse,
   FileAsset,
   FileAssetType,
   FileUploadResponse,
 } from '@/features/files/types'
+import type { PageResponse } from '@/features/courses/types'
+
+export async function listFileAssets(query: FileAssetsQuery) {
+  const response = await api.get<ApiResponse<PageResponse<FileAssetListItem>>>(
+    '/api/v1/files',
+    {
+      params: {
+        keyword: query.keyword || undefined,
+        assetType: query.assetType || undefined,
+        storageProvider: query.storageProvider || undefined,
+        relatedType: query.relatedType || undefined,
+        relatedId: query.relatedId,
+        bound: query.bound,
+        page: query.page,
+        size: query.size,
+      },
+    },
+  )
+
+  return response.data.data
+}
 
 export async function uploadFile(file: File, assetType: FileAssetType) {
   const formData = new FormData()

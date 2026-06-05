@@ -4,13 +4,16 @@ import { RequireAuth } from '@/features/auth/require-auth'
 import { CourseEnrollmentsPage } from '@/pages/course-enrollments-page'
 import { CoursesPage } from '@/pages/courses-page'
 import { DashboardPage } from '@/pages/dashboard-page'
+import { GlobalLessonsPage } from '@/pages/global-lessons-page'
 import { LearnCoursePage } from '@/pages/learn-course-page'
 import { LearnCoursesPage } from '@/pages/learn-courses-page'
 import { LearnLessonPage } from '@/pages/learn-lesson-page'
 import { LessonsPage } from '@/pages/lessons-page'
 import { LoginPage } from '@/pages/login-page'
+import { MediaAssetsPage } from '@/pages/media-assets-page'
 import { MyCoursesPage } from '@/pages/my-courses-page'
 import { RegisterPage } from '@/pages/register-page'
+import { SettingsPage } from '@/pages/settings-page'
 import { UserCourseProgressPage } from '@/pages/user-course-progress-page'
 
 function App() {
@@ -24,6 +27,54 @@ function App() {
         element={
           <RequireAuth>
             <DashboardPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/settings"
+        element={
+          <RequireAuth>
+            <SettingsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <RequireAuth>
+            <SettingsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/lessons"
+        element={
+          <RequireAuth>
+            <GlobalLessonsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/lessons"
+        element={
+          <RequireAuth>
+            <GlobalLessonsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/media-assets"
+        element={
+          <RequireAuth>
+            <MediaAssetsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/media-assets"
+        element={
+          <RequireAuth>
+            <MediaAssetsPage />
           </RequireAuth>
         }
       />

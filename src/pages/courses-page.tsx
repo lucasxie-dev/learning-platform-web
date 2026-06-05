@@ -33,7 +33,6 @@ import type {
   CoursePayload,
   CourseStatus,
 } from '@/features/courses/types'
-import { useAuth } from '@/features/auth/auth-context'
 import { getCurrentUser } from '@/features/auth/auth-api'
 import { bindCourseCover, unbindCourseCover, uploadFile } from '@/features/files/file-api'
 import { FileAssetCard } from '@/features/files/file-asset-card'
@@ -41,6 +40,7 @@ import { FileUploadField } from '@/features/files/file-upload-field'
 import type { FileAssetType } from '@/features/files/types'
 import { enrollCourse, listMyCourses } from '@/features/learning/learning-api'
 import { getApiErrorMessage } from '@/lib/api'
+import { WorkspaceLayout } from '@/components/layout/workspace-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -72,7 +72,6 @@ const pageSize = 10
 
 export function CoursesPage() {
   const queryClient = useQueryClient()
-  const { logout } = useAuth()
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState<CourseStatus | 'ALL'>('ALL')
   const [page, setPage] = useState(0)
@@ -218,37 +217,24 @@ export function CoursesPage() {
     void coursesQuery.refetch()
   }
 
-  function handleLogout() {
-    logout()
-  }
-
   const courses = coursesQuery.data?.items ?? []
   const totalPages = coursesQuery.data?.totalPages ?? 0
 
   return (
-    <main className="min-h-svh bg-muted/30">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div>
-            <h1 className="text-lg font-semibold">{managementTitle}</h1>
-            <p className="text-sm text-muted-foreground">
-              {managementDescription}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" asChild>
-              <Link to="/dashboard">Dashboard</Link>
-            </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              Sign out
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto grid max-w-6xl gap-4 px-4 py-6">
-        <Card>
-          <CardHeader className="gap-3 md:grid-cols-[1fr_auto]">
+    <WorkspaceLayout
+      user={user}
+      title={managementTitle}
+      description={managementDescription}
+      activeItem="courses"
+      canManageCourses={canManageCourses}
+      canLearn={canEnrollCourses}
+      manageLabel={isAdmin ? 'Courses' : isTeacher ? 'My Courses' : 'Courses'}
+      lessonsHref="/courses"
+      progressHref="/me/courses"
+    >
+      <div className="grid gap-5">
+        <Card className="rounded-3xl border-slate-200/80 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.06)]">
+          <CardHeader className="gap-4 md:grid md:grid-cols-[1fr_auto] md:items-center">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <BookOpenIcon className="size-4" />
@@ -261,7 +247,7 @@ export function CoursesPage() {
             {canManageCourses ? (
               <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="rounded-xl">
                     <PlusIcon />
                     New course
                   </Button>
@@ -281,19 +267,19 @@ export function CoursesPage() {
               </Dialog>
             ) : null}
           </CardHeader>
-          <CardContent className="grid gap-4">
-            <form className="grid gap-2 md:grid-cols-[1fr_180px_auto]" onSubmit={handleSearchSubmit}>
+          <CardContent className="grid gap-5">
+            <form className="grid gap-3 md:grid-cols-[1fr_180px_auto]" onSubmit={handleSearchSubmit}>
               <div className="relative">
-                <SearchIcon className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" />
+                <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <Input
-                  className="pl-8"
+                  className="h-11 rounded-xl border-slate-200 bg-slate-50 pl-10 shadow-none"
                   placeholder="Search courses"
                   value={keyword}
                   onChange={(event) => setKeyword(event.target.value)}
                 />
               </div>
               <select
-                className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus-visible:border-blue-300 focus-visible:ring-3 focus-visible:ring-blue-100"
                 value={status}
                 onChange={(event) => {
                   setStatus(event.target.value as CourseStatus | 'ALL')
@@ -305,17 +291,17 @@ export function CoursesPage() {
                 <option value="PUBLISHED">Published</option>
                 <option value="ARCHIVED">Archived</option>
               </select>
-              <Button type="submit" variant="outline">
+              <Button className="rounded-xl" type="submit" variant="outline">
                 Search
               </Button>
             </form>
 
             {coursesQuery.isLoading ? (
-              <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+              <div className="rounded-2xl border bg-slate-50 p-6 text-sm text-slate-500">
                 Loading courses...
               </div>
             ) : coursesQuery.isError ? (
-              <div className="rounded-lg border border-destructive/30 bg-background p-6 text-sm text-destructive">
+              <div className="rounded-2xl border border-destructive/30 bg-background p-6 text-sm text-destructive">
                 Unable to load courses.
               </div>
             ) : courses.length ? (
@@ -332,12 +318,12 @@ export function CoursesPage() {
                 onEnroll={(courseId) => enrollMutation.mutate(courseId)}
               />
             ) : (
-              <div className="rounded-lg border bg-background p-6 text-sm text-muted-foreground">
+              <div className="rounded-2xl border bg-slate-50 p-6 text-sm text-slate-500">
                 No courses found.
               </div>
             )}
 
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center justify-between text-sm text-slate-500">
               <span>
                 Total {coursesQuery.data?.total ?? 0} courses
               </span>
@@ -345,6 +331,7 @@ export function CoursesPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="rounded-xl"
                   disabled={page === 0}
                   onClick={() => setPage((current) => Math.max(current - 1, 0))}
                 >
@@ -356,6 +343,7 @@ export function CoursesPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="rounded-xl"
                   disabled={page + 1 >= totalPages}
                   onClick={() => setPage((current) => current + 1)}
                 >
@@ -421,7 +409,7 @@ export function CoursesPage() {
           />
         </DialogContent>
       </Dialog>
-    </main>
+    </WorkspaceLayout>
   )
 }
 
@@ -451,147 +439,149 @@ function CoursesTable({
   const hasActions = canManageCourses || canEnrollCourses
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Course</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead>Owner</TableHead>
-          {hasActions ? <TableHead className="text-right">Actions</TableHead> : null}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {courses.map((course) => (
-          <TableRow key={course.id}>
-            <TableCell className="whitespace-normal">
-              <div className="font-medium">{course.title}</div>
-              {course.subtitle ? (
-                <div className="text-sm text-muted-foreground">{course.subtitle}</div>
-              ) : null}
-            </TableCell>
-            <TableCell>
-              <StatusBadge status={course.status} />
-            </TableCell>
-            <TableCell>{formatDate(course.createdAt)}</TableCell>
-            <TableCell>#{course.ownerId}</TableCell>
-            {hasActions ? (
-              <TableCell>
-                <div className="flex justify-end gap-1">
-                  {canEnrollCourses && course.status === 'PUBLISHED' ? (
-                    enrolledCourseIds.has(course.id) ? (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        asChild
-                        title="Enter learning"
-                      >
-                        <Link to={`/learn/courses/${course.id}`}>
-                          <PlayIcon />
-                        </Link>
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => onEnroll(course.id)}
-                        title="Enroll"
-                      >
-                        <UserPlusIcon />
-                      </Button>
-                    )
-                  ) : null}
-                  {canManageCourses ? (
-                    <>
-                      {course.status !== 'ARCHIVED' ? (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            asChild
-                            title="Lessons"
-                          >
-                            <Link to={`/courses/${course.id}/lessons`}>
-                              <ListOrderedIcon />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => onUploadCover(course)}
-                            title="Upload cover"
-                          >
-                            <ImageIcon />
-                          </Button>
-                        </>
-                      ) : null}
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        asChild
-                        title="Enrollments"
-                      >
-                        <Link to={`/courses/${course.id}/enrollments`}>
-                          <UsersIcon />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={course.status === 'PUBLISHED'}
-                        onClick={() => onEdit(course)}
-                        title="Edit"
-                      >
-                        <EditIcon />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={course.status === 'PUBLISHED'}
-                        onClick={() => onPublish(course.id)}
-                        title="Publish"
-                      >
-                        <CheckCircle2Icon />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={course.status !== 'PUBLISHED'}
-                        onClick={() => onArchive(course.id)}
-                        title="Archive"
-                      >
-                        <ArchiveIcon />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => onDelete(course.id)}
-                        title="Delete"
-                      >
-                        <Trash2Icon />
-                      </Button>
-                    </>
-                  ) : null}
-                </div>
-              </TableCell>
-            ) : null}
+    <div className="overflow-hidden rounded-2xl border border-slate-200">
+      <Table>
+        <TableHeader className="bg-slate-50">
+          <TableRow>
+            <TableHead className="font-semibold text-slate-600">Course</TableHead>
+            <TableHead className="font-semibold text-slate-600">Status</TableHead>
+            <TableHead className="font-semibold text-slate-600">Created</TableHead>
+            <TableHead className="font-semibold text-slate-600">Owner</TableHead>
+            {hasActions ? <TableHead className="text-right font-semibold text-slate-600">Actions</TableHead> : null}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {courses.map((course) => (
+            <TableRow key={course.id} className="hover:bg-blue-50/40">
+              <TableCell className="whitespace-normal py-4">
+                <div className="font-semibold text-slate-950">{course.title}</div>
+                {course.subtitle ? (
+                  <div className="mt-1 text-sm text-slate-500">{course.subtitle}</div>
+                ) : null}
+              </TableCell>
+              <TableCell>
+                <StatusBadge status={course.status} />
+              </TableCell>
+              <TableCell className="text-slate-600">{formatDate(course.createdAt)}</TableCell>
+              <TableCell className="text-slate-600">#{course.ownerId}</TableCell>
+              {hasActions ? (
+                <TableCell>
+                  <div className="flex justify-end gap-1">
+                    {canEnrollCourses && course.status === 'PUBLISHED' ? (
+                      enrolledCourseIds.has(course.id) ? (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          asChild
+                          title="Enter learning"
+                        >
+                          <Link to={`/learn/courses/${course.id}`}>
+                            <PlayIcon />
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => onEnroll(course.id)}
+                          title="Enroll"
+                        >
+                          <UserPlusIcon />
+                        </Button>
+                      )
+                    ) : null}
+                    {canManageCourses ? (
+                      <>
+                        {course.status !== 'ARCHIVED' ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              asChild
+                              title="Lessons"
+                            >
+                              <Link to={`/courses/${course.id}/lessons`}>
+                                <ListOrderedIcon />
+                              </Link>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => onUploadCover(course)}
+                              title="Upload cover"
+                            >
+                              <ImageIcon />
+                            </Button>
+                          </>
+                        ) : null}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          asChild
+                          title="Enrollments"
+                        >
+                          <Link to={`/courses/${course.id}/enrollments`}>
+                            <UsersIcon />
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={course.status === 'PUBLISHED'}
+                          onClick={() => onEdit(course)}
+                          title="Edit"
+                        >
+                          <EditIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={course.status === 'PUBLISHED'}
+                          onClick={() => onPublish(course.id)}
+                          title="Publish"
+                        >
+                          <CheckCircle2Icon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={course.status !== 'PUBLISHED'}
+                          onClick={() => onArchive(course.id)}
+                          title="Archive"
+                        >
+                          <ArchiveIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => onDelete(course.id)}
+                          title="Delete"
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                </TableCell>
+              ) : null}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 
 function StatusBadge({ status }: { status: CourseStatus }) {
   if (status === 'PUBLISHED') {
-    return <Badge>Published</Badge>
+    return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Published</Badge>
   }
 
   if (status === 'ARCHIVED') {
-    return <Badge variant="secondary">Archived</Badge>
+    return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Archived</Badge>
   }
 
-  return <Badge variant="outline">Draft</Badge>
+  return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">Draft</Badge>
 }
 
 function formatDate(value: string) {
