@@ -1,38 +1,44 @@
-import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftIcon, CheckCircle2Icon, ClockIcon, SaveIcon } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
-import { toast } from 'sonner'
+import { useQuery } from '@tanstack/react-query'
+import {
+  ArrowLeftIcon,
+  BookOpenCheckIcon,
+  BookOpenIcon,
+  CheckCircle2Icon,
+  ChevronDownIcon,
+  ClockIcon,
+  ImageIcon,
+  LogOutIcon,
+  PlayIcon,
+} from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
+import { getCurrentUser } from '@/features/auth/auth-api'
+import { useAuth } from '@/features/auth/auth-context'
 import { getCourse } from '@/features/courses/course-api'
 import { createFileAccessUrl } from '@/features/files/file-api'
-import { getLesson } from '@/features/lessons/lesson-api'
-import { MarkdownPreview } from '@/features/lessons/markdown-preview'
-import type { Lesson } from '@/features/lessons/types'
-import {
-  completeLesson,
-  getMyCourseProgress,
-  updateLessonProgress,
-} from '@/features/learning/learning-api'
+import { getMyCourseProgress } from '@/features/learning/learning-api'
 import type { LessonProgressItem } from '@/features/learning/types'
-import { getApiErrorMessage } from '@/lib/api'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export function LearnCoursePage() {
   const params = useParams()
-  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { logout } = useAuth()
   const courseId = Number(params.courseId)
-  const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null)
-  const [progressInput, setProgressInput] = useState('')
+
+  const currentUserQuery = useQuery({
+    queryKey: ['current-user'],
+    queryFn: getCurrentUser,
+    retry: false,
+  })
 
   const courseQuery = useQuery({
     queryKey: ['course', courseId],
@@ -46,232 +52,235 @@ export function LearnCoursePage() {
     enabled: Number.isFinite(courseId),
   })
 
-  const selectedProgress = useMemo(() => {
-    const lessons = progressQuery.data?.lessons ?? []
-    return lessons.find((lesson) => lesson.lessonId === selectedLessonId) ?? lessons[0] ?? null
-  }, [progressQuery.data?.lessons, selectedLessonId])
-
-  const lessonQuery = useQuery({
-    queryKey: ['lesson', selectedProgress?.lessonId],
-    queryFn: () => getLesson(Number(selectedProgress?.lessonId)),
-    enabled: Boolean(selectedProgress?.lessonId),
-  })
-
-  const audioUrlQuery = useSignedMediaUrl(lessonQuery.data?.audioFileId)
-  const videoUrlQuery = useSignedMediaUrl(lessonQuery.data?.videoFileId)
-  const subtitleUrlQuery = useSignedMediaUrl(lessonQuery.data?.subtitleFileId)
-
-  const updateProgressMutation = useMutation({
-    mutationFn: ({ lessonId, seconds }: { lessonId: number; seconds: number }) =>
-      updateLessonProgress(lessonId, seconds),
-    onSuccess: () => {
-      toast.success('Progress saved')
-      setProgressInput('')
-      void queryClient.invalidateQueries({ queryKey: ['course-progress', courseId] })
-    },
-    onError: (error) => toast.error(getApiErrorMessage(error)),
-  })
-
-  const completeMutation = useMutation({
-    mutationFn: completeLesson,
-    onSuccess: () => {
-      toast.success('Lesson completed')
-      void queryClient.invalidateQueries({ queryKey: ['course-progress', courseId] })
-    },
-    onError: (error) => toast.error(getApiErrorMessage(error)),
-  })
-
+  const user = currentUserQuery.data
+  const course = courseQuery.data
   const progress = progressQuery.data
   const lessons = progress?.lessons ?? []
-  const course = courseQuery.data
-  const lesson = lessonQuery.data
+  const displayName = user?.displayName || user?.username || 'Learner'
+  const initials = displayName.slice(0, 2).toUpperCase()
+  const completionPercent = Math.round((progress?.completionRate ?? 0) * 100)
+  const nextLesson = lessons.find((lesson) => !lesson.completed) ?? lessons[0] ?? null
 
-  function saveProgress() {
-    if (!selectedProgress) {
-      return
-    }
-
-    updateProgressMutation.mutate({
-      lessonId: selectedProgress.lessonId,
-      seconds: Number(progressInput || selectedProgress.progressSeconds),
-    })
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
   }
 
   return (
-    <main className="min-h-svh bg-muted/30">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/me/courses">
-                <ArrowLeftIcon />
-                My courses
-              </Link>
-            </Button>
-            <h1 className="mt-1 text-lg font-semibold">{course?.title ?? 'Learning'}</h1>
-            <p className="text-sm text-muted-foreground">
-              {progress ? `${progress.completedLessons}/${progress.totalLessons} lessons completed` : 'Course progress'}
-            </p>
-          </div>
-          {progress ? (
-            <Badge>{Math.round(progress.completionRate * 100)}%</Badge>
-          ) : null}
+    <main className="min-h-svh bg-[#f8fbff] text-slate-950">
+      <header className="border-b border-slate-200/70 bg-white">
+        <div className="mx-auto flex max-w-[1480px] items-center gap-6 px-5 py-5">
+          <Link className="flex items-center gap-3 pr-8 lg:border-r lg:border-slate-200" to="/dashboard">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-[0_12px_28px_rgba(37,99,235,0.22)]">
+              <BookOpenIcon className="size-6" />
+            </div>
+            <span className="hidden text-xl font-bold tracking-tight sm:block">Learning Platform</span>
+          </Link>
+
+          <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
+            <Link className="px-2 py-5 hover:text-blue-600" to="/learn/courses">
+              Learn
+            </Link>
+            <Link className="border-b-2 border-blue-600 px-2 py-5 text-blue-600" to="/me/courses">
+              My Courses
+            </Link>
+          </nav>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="ml-auto flex h-11 items-center gap-2 rounded-2xl bg-slate-50 px-2.5 ring-1 ring-slate-200 transition hover:bg-slate-100">
+                <Avatar>
+                  {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={displayName} /> : null}
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <span className="hidden max-w-28 truncate text-sm font-semibold sm:block">{displayName}</span>
+                <ChevronDownIcon className="size-4 text-slate-500" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-xl">
+              <DropdownMenuItem className="cursor-pointer gap-2 px-3 py-2" onClick={handleLogout}>
+                <LogOutIcon className="size-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-4 px-4 py-6 md:grid-cols-[320px_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Lessons</CardTitle>
-            <CardDescription>Published lessons in this course.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {progressQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading progress...</p>
-            ) : progressQuery.isError ? (
-              <p className="text-sm text-destructive">Unable to load progress.</p>
-            ) : lessons.length ? (
-              lessons.map((lessonItem) => (
-                <Link
-                  key={lessonItem.lessonId}
-                  className="grid gap-1 rounded-lg border bg-background p-3 text-left text-sm transition-colors hover:bg-muted/50"
-                  to={`/learn/lessons/${lessonItem.lessonId}`}
-                  onMouseEnter={() => setSelectedLessonId(lessonItem.lessonId)}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{lessonItem.title}</span>
-                    {lessonItem.completed ? <CheckCircle2Icon className="size-4 text-primary" /> : null}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDuration(lessonItem.progressSeconds)} / {formatDuration(lessonItem.durationSeconds)}
-                  </span>
-                </Link>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No published lessons.</p>
-            )}
-          </CardContent>
-        </Card>
+      <div className="mx-auto grid max-w-[1480px] gap-5 px-5 py-6">
+        <Button className="w-fit rounded-xl" variant="ghost" asChild>
+          <Link to="/me/courses">
+            <ArrowLeftIcon />
+            My Courses
+          </Link>
+        </Button>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedProgress?.title ?? 'Select a lesson'}</CardTitle>
-            <CardDescription>Play media and update your learning progress.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            {lessonQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading lesson...</p>
-            ) : selectedProgress && lesson ? (
-              <LessonPlayer
-                lesson={lesson}
-                progress={selectedProgress}
-                audioUrl={audioUrlQuery.data?.url}
-                videoUrl={videoUrlQuery.data?.url}
-                subtitleUrl={subtitleUrlQuery.data?.url}
-                progressInput={progressInput}
-                setProgressInput={setProgressInput}
-                onSaveProgress={saveProgress}
-                onComplete={() => completeMutation.mutate(selectedProgress.lessonId)}
-                isSaving={updateProgressMutation.isPending}
-                isCompleting={completeMutation.isPending}
+        <section className="grid overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.05)] lg:grid-cols-[380px_1fr]">
+          <CourseCover fileId={course?.coverFileId ?? null} title={course?.title ?? 'Course'} />
+          <div className="grid content-between gap-8 p-6 lg:p-8">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
+                {course?.title ?? 'Course'}
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                {course?.description || course?.subtitle || 'Continue the lessons in this course and track your progress.'}
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <CourseStat
+                icon={<BookOpenCheckIcon />}
+                label="Lessons"
+                value={progress ? `${progress.completedLessons}/${progress.totalLessons}` : '-'}
               />
-            ) : (
-              <p className="text-sm text-muted-foreground">Choose a lesson from the list.</p>
-            )}
-          </CardContent>
-        </Card>
+              <CourseStat icon={<CheckCircle2Icon />} label="Completion" value={`${completionPercent}%`} />
+              <CourseStat
+                icon={<ClockIcon />}
+                label="Next"
+                value={nextLesson ? formatDuration(nextLesson.durationSeconds) : '-'}
+              />
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between text-sm font-medium">
+                <span>Course progress</span>
+                <span className="text-blue-600">{completionPercent}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-blue-600" style={{ width: `${completionPercent}%` }} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_18px_48px_rgba(15,23,42,0.05)]">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-bold text-slate-950">Lessons</h2>
+              <p className="mt-1 text-sm text-slate-500">Open a lesson to continue learning.</p>
+            </div>
+            {nextLesson ? (
+              <Button className="rounded-xl" asChild>
+                <Link to={`/learn/lessons/${nextLesson.lessonId}`}>
+                  <PlayIcon />
+                  Continue
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+
+          {progressQuery.isLoading ? (
+            <LessonsLoading />
+          ) : progressQuery.isError ? (
+            <div className="rounded-2xl border border-destructive/30 bg-background p-6 text-sm text-destructive">
+              Unable to load lessons.
+            </div>
+          ) : lessons.length ? (
+            <div className="grid gap-3">
+              {lessons.map((lesson, index) => (
+                <LessonRow key={lesson.lessonId} lesson={lesson} index={index} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed bg-slate-50 p-8 text-center text-sm text-slate-500">
+              No lessons available yet.
+            </div>
+          )}
+        </section>
       </div>
     </main>
   )
 }
 
-function LessonPlayer({
-  lesson,
-  progress,
-  audioUrl,
-  videoUrl,
-  subtitleUrl,
-  progressInput,
-  setProgressInput,
-  onSaveProgress,
-  onComplete,
-  isSaving,
-  isCompleting,
-}: {
-  lesson: Lesson
-  progress: LessonProgressItem
-  audioUrl?: string
-  videoUrl?: string
-  subtitleUrl?: string
-  progressInput: string
-  setProgressInput: (value: string) => void
-  onSaveProgress: () => void
-  onComplete: () => void
-  isSaving: boolean
-  isCompleting: boolean
-}) {
-  return (
-    <div className="grid gap-4">
-      <MarkdownPreview markdown={lesson.contentMarkdown ?? lesson.description} />
-      {videoUrl ? (
-        <video className="max-h-96 w-full rounded-lg border bg-black" controls src={videoUrl}>
-          {subtitleUrl ? <track kind="subtitles" src={subtitleUrl} /> : null}
-        </video>
-      ) : null}
-      {audioUrl ? <audio className="w-full" controls src={audioUrl} /> : null}
-      {subtitleUrl ? (
-        <Button variant="outline" asChild>
-          <a href={subtitleUrl} target="_blank" rel="noreferrer">
-            Open subtitle
-          </a>
-        </Button>
-      ) : null}
-      {!audioUrl && !videoUrl && !subtitleUrl ? (
-        <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-          No media files are attached to this lesson.
-        </div>
-      ) : null}
-      <div className="grid gap-3 rounded-lg border bg-background p-3">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <ClockIcon className="size-4" />
-          Progress
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full bg-primary"
-            style={{ width: `${progressPercent(progress)}%` }}
-          />
-        </div>
-        <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
-          <Input
-            min={0}
-            max={progress.durationSeconds ?? undefined}
-            placeholder={progress.progressSeconds.toString()}
-            type="number"
-            value={progressInput}
-            onChange={(event) => setProgressInput(event.target.value)}
-          />
-          <Button variant="outline" disabled={isSaving} onClick={onSaveProgress}>
-            <SaveIcon />
-            Save seconds
-          </Button>
-          <Button disabled={isCompleting || progress.completed} onClick={onComplete}>
-            <CheckCircle2Icon />
-            {progress.completed ? 'Completed' : 'Mark complete'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function useSignedMediaUrl(fileId: number | null | undefined) {
-  return useQuery({
+function CourseCover({ fileId, title }: { fileId: number | null; title: string }) {
+  const coverUrlQuery = useQuery({
     queryKey: ['file-access-url', fileId],
     queryFn: () => createFileAccessUrl(Number(fileId)),
     enabled: Boolean(fileId),
     staleTime: 60_000,
   })
+
+  if (!coverUrlQuery.data?.url) {
+    return (
+      <div className="flex min-h-64 items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 text-slate-300">
+        <ImageIcon className="size-12" />
+      </div>
+    )
+  }
+
+  return <img className="h-full min-h-64 w-full object-cover" src={coverUrlQuery.data.url} alt={title} />
+}
+
+function CourseStat({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+        <span className="[&>svg]:size-5">{icon}</span>
+      </div>
+      <div>
+        <div className="text-lg font-bold text-slate-950">{value}</div>
+        <div className="text-xs font-medium text-slate-500">{label}</div>
+      </div>
+    </div>
+  )
+}
+
+function LessonRow({ lesson, index }: { lesson: LessonProgressItem; index: number }) {
+  const percent = progressPercent(lesson)
+
+  return (
+    <Link
+      className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-blue-200 hover:bg-blue-50/40 md:grid-cols-[auto_1fr_auto]"
+      to={`/learn/lessons/${lesson.lessonId}`}
+    >
+      <div className={`flex size-11 items-center justify-center rounded-xl ${lesson.completed ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+        {lesson.completed ? <CheckCircle2Icon className="size-5" /> : <span className="text-sm font-bold">{index + 1}</span>}
+      </div>
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-bold text-slate-950">{lesson.title}</h3>
+          {lesson.completed ? (
+            <Badge className="rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 hover:bg-emerald-50">
+              Completed
+            </Badge>
+          ) : null}
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-blue-600" style={{ width: `${percent}%` }} />
+          </div>
+          <span className="w-10 text-right text-xs font-bold text-slate-500">{percent}%</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 text-sm text-slate-500">
+        <ClockIcon className="size-4" />
+        {formatDuration(lesson.progressSeconds)} / {formatDuration(lesson.durationSeconds)}
+      </div>
+    </Link>
+  )
+}
+
+function LessonsLoading() {
+  return (
+    <div className="grid gap-3">
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="h-5 w-1/2 animate-pulse rounded-full bg-slate-100" />
+          <div className="mt-4 h-2 animate-pulse rounded-full bg-slate-100" />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function progressPercent(progress: LessonProgressItem) {

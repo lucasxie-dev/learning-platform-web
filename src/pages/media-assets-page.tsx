@@ -118,7 +118,6 @@ export function MediaAssetsPage() {
       canManageCourses={navigation.canManageCourses}
       canLearn={navigation.canLearn}
       manageLabel={navigation.manageLabel}
-      progressHref="/me/courses"
     >
       {!navigation.canManageCourses ? (
         <ForbiddenState />

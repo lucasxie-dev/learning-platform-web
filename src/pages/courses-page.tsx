@@ -230,7 +230,6 @@ export function CoursesPage() {
       canLearn={canEnrollCourses}
       manageLabel={isAdmin ? 'Courses' : isTeacher ? 'My Courses' : 'Courses'}
       lessonsHref="/courses"
-      progressHref="/me/courses"
     >
       <div className="grid gap-5">
         <Card className="rounded-3xl border-slate-200/80 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.06)]">

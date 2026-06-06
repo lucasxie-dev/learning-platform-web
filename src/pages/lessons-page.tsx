@@ -246,7 +246,6 @@ export function LessonsPage() {
       canLearn={canLearn}
       manageLabel={manageLabel}
       lessonsHref={Number.isFinite(courseId) ? `/courses/${courseId}/lessons` : '/courses'}
-      progressHref="/me/courses"
     >
       <div className="grid gap-5">
         <div>

@@ -1,15 +1,12 @@
 import {
-  BellIcon,
   BookOpenCheckIcon,
   BookOpenIcon,
   ChevronDownIcon,
-  Clock3Icon,
   FileTextIcon,
   GraduationCapIcon,
   ImageIcon,
   LayoutDashboardIcon,
   LogOutIcon,
-  SearchIcon,
   SettingsIcon,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -29,12 +26,11 @@ type WorkspaceLayoutProps = {
   user: CurrentUser | undefined
   title: string
   description: string
-  activeItem: 'dashboard' | 'courses' | 'lessons' | 'media' | 'catalog' | 'my-courses' | 'progress' | 'settings'
+  activeItem: 'dashboard' | 'courses' | 'lessons' | 'media' | 'catalog' | 'my-courses' | 'settings'
   canManageCourses: boolean
   canLearn: boolean
   manageLabel: string
   lessonsHref?: string
-  progressHref?: string
   children: React.ReactNode
 }
 
@@ -46,7 +42,6 @@ export function WorkspaceLayout({
   canManageCourses,
   canLearn,
   manageLabel,
-  progressHref = '/me/courses',
   children,
 }: WorkspaceLayoutProps) {
   const navigate = useNavigate()
@@ -112,12 +107,6 @@ export function WorkspaceLayout({
                   label="My Courses"
                   to="/me/courses"
                 />
-                <NavItem
-                  active={activeItem === 'progress'}
-                  icon={<Clock3Icon />}
-                  label="Progress"
-                  to={progressHref}
-                />
               </>
             ) : null}
             <NavItem
@@ -150,21 +139,6 @@ export function WorkspaceLayout({
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="hidden h-12 w-[430px] items-center rounded-2xl bg-white px-4 shadow-[0_12px_36px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 lg:flex">
-                <SearchIcon className="size-5 text-slate-400" />
-                <span className="ml-3 flex-1 text-sm text-slate-400">
-                  Search courses, lessons, or media...
-                </span>
-                <kbd className="rounded-md border bg-slate-50 px-1.5 py-0.5 text-xs text-slate-400">⌘ K</kbd>
-              </div>
-
-              <button className="relative flex size-12 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-[0_12px_36px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70">
-                <BellIcon className="size-5" />
-                <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white">
-                  3
-                </span>
-              </button>
-
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex h-12 items-center gap-2 rounded-2xl bg-white px-2.5 shadow-[0_12px_36px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 transition hover:bg-slate-50">

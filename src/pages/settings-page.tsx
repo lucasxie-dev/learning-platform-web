@@ -63,7 +63,6 @@ export function SettingsPage() {
       canLearn={navigation.canLearn}
       manageLabel={navigation.manageLabel}
       lessonsHref="/courses"
-      progressHref="/me/courses"
     >
       {settingsQuery.isLoading ? (
         <SettingsLoading />

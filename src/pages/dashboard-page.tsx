@@ -7,8 +7,6 @@ import {
   FileTextIcon,
   GraduationCapIcon,
   ImageIcon,
-  MoreVerticalIcon,
-  PlayIcon,
   UploadCloudIcon,
   UserPlusIcon,
   UsersIcon,
@@ -25,6 +23,7 @@ import type {
   DashboardMedia,
 } from '@/features/dashboard/types'
 import { createFileAccessUrl } from '@/features/files/file-api'
+import { listMyCourses } from '@/features/learning/learning-api'
 import { WorkspaceLayout } from '@/components/layout/workspace-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -59,6 +58,12 @@ export function DashboardPage() {
     queryFn: getDashboard,
   })
 
+  const myCoursesQuery = useQuery({
+    queryKey: ['my-courses'],
+    queryFn: () => listMyCourses(0, 100),
+    enabled: canLearn,
+  })
+
   const dashboard = dashboardQuery.data
   const summary = dashboard?.summary
   const featuredCourses = dashboard?.recentCourses ?? []
@@ -66,6 +71,21 @@ export function DashboardPage() {
   const recentMedia = dashboard?.recentMedia ?? []
   const lessonPreview = dashboard?.lessonPreview
   const recentActivities = dashboard?.recentActivities ?? []
+  const enrolledCourseIds = new Set(
+    (myCoursesQuery.data?.items ?? recentLearning).map((course) => course.courseId),
+  )
+  const isStudentDashboard = canLearn && !canManageCourses
+  const displayCourses = isStudentDashboard
+    ? featuredCourses.filter((course) => !enrolledCourseIds.has(course.id))
+    : featuredCourses
+  const coursesPanelTitle = isStudentDashboard ? 'Explore Courses' : 'Recent Courses'
+  const coursesPanelActionLabel = isStudentDashboard ? 'Browse catalog' : 'View all courses'
+  const coursesPanelEmptyText = isStudentDashboard
+    ? 'No available courses to explore right now.'
+    : 'No courses available yet.'
+  const dashboardGridClass = canManageCourses
+    ? 'grid gap-5 2xl:grid-cols-[1fr_320px]'
+    : 'grid gap-5'
 
   return (
     <WorkspaceLayout
@@ -77,9 +97,8 @@ export function DashboardPage() {
       canLearn={canLearn}
       manageLabel={manageLabel}
       lessonsHref="/courses"
-      progressHref={recentLearning[0] ? `/learn/courses/${recentLearning[0].courseId}` : '/me/courses'}
     >
-      <div className="grid gap-5 2xl:grid-cols-[1fr_320px]">
+      <div className={dashboardGridClass}>
             <div className="grid gap-5">
               <section className="grid gap-5 lg:grid-cols-[1.5fr_repeat(4,minmax(140px,1fr))]">
                 <WelcomeCard displayName={displayName} />
@@ -89,122 +108,145 @@ export function DashboardPage() {
                 <MetricCard icon={<BarChart3Icon />} label="Avg Completion" tone="orange" value={`${Math.round((summary?.averageCompletionRate ?? 0) * 100)}%`} delta={`${summary?.archivedCourses ?? 0} archived courses`} />
               </section>
 
-              <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-                <Panel title="Recent Courses" actionLabel="View all courses" actionTo={canManageCourses ? '/courses' : '/learn/courses'}>
-                  {featuredCourses.length ? (
-                    <div className="grid gap-4 md:grid-cols-3">
-                      {featuredCourses.map((course) => (
-                        <CourseCard key={course.id} course={course} canManage={canManageCourses} />
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState text="No courses available yet." />
-                  )}
-                </Panel>
+              {canLearn && !canManageCourses ? (
+                <>
+                  <section className="grid gap-5">
+                    <Panel title="My Learning" actionLabel="View all" actionTo="/me/courses">
+                      {recentLearning.length ? (
+                        <div className="grid gap-5">
+                          {recentLearning.map((course) => (
+                            <LearningRow key={course.enrollmentId} course={course} />
+                          ))}
+                        </div>
+                      ) : (
+                        <EmptyState text="No enrolled courses yet." />
+                      )}
+                    </Panel>
+                  </section>
 
-                <Panel title="Lesson Media">
-                  <div className="mb-5 flex items-center gap-4">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold">{lessonPreview?.lessonTitle ?? 'No lesson preview yet'}</h3>
-                      <p className="mt-1 text-sm text-slate-500">{lessonPreview?.courseTitle ?? 'Upload media to enrich lessons'}</p>
-                    </div>
-                    <div className="h-16 w-28 overflow-hidden rounded-xl bg-slate-100">
-                      <img className="h-full w-full object-cover" src="/images/login.jpg" alt="Lesson media" />
-                    </div>
-                  </div>
-                  {recentMedia.length ? (
-                    <div className="grid gap-3">
-                      {recentMedia.slice(0, 3).map((media) => (
-                        <MediaRow key={media.id} media={media} />
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState text="No media assets uploaded yet." />
-                  )}
-                  <div className="mt-4 flex items-center justify-between rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 p-4">
-                    <div className="flex items-center gap-3">
-                      <UploadCloudIcon className="size-6 text-blue-600" />
-                      <div>
-                        <div className="text-sm font-bold">Upload new media</div>
-                        <div className="text-xs text-slate-500">Drag & drop or click to upload</div>
+                  <section className="grid gap-5">
+                    <Panel title={coursesPanelTitle} actionLabel={coursesPanelActionLabel} actionTo="/learn/courses">
+                      {displayCourses.length ? (
+                        <div className="grid gap-4 md:grid-cols-3">
+                          {displayCourses.map((course) => (
+                            <CourseCard
+                              key={course.id}
+                              course={course}
+                              canManage={canManageCourses}
+                              showStatusBadge={canManageCourses}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <EmptyState text={coursesPanelEmptyText} />
+                      )}
+                    </Panel>
+                  </section>
+                </>
+              ) : (
+                <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+                  <Panel
+                    title={coursesPanelTitle}
+                    actionLabel={coursesPanelActionLabel}
+                    actionTo={canManageCourses ? '/courses' : '/learn/courses'}
+                    className="xl:h-[460px] xl:overflow-hidden"
+                  >
+                    {displayCourses.length ? (
+                      <div className="grid gap-4 md:grid-cols-3">
+                        {displayCourses.slice(0, 3).map((course) => (
+                          <CourseCard
+                            key={course.id}
+                            course={course}
+                            canManage={canManageCourses}
+                            showStatusBadge={canManageCourses}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text={coursesPanelEmptyText} />
+                    )}
+                  </Panel>
+
+                  <Panel title="Lesson Media" className="xl:h-[460px] xl:overflow-hidden">
+                    <div className="mb-5 flex items-center gap-4">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold">{lessonPreview?.lessonTitle ?? 'No lesson preview yet'}</h3>
+                        <p className="mt-1 text-sm text-slate-500">{lessonPreview?.courseTitle ?? 'Recent lesson media will appear here'}</p>
+                      </div>
+                      <div className="h-16 w-28 overflow-hidden rounded-xl bg-slate-100">
+                        <img className="h-full w-full object-cover" src="/images/login.jpg" alt="Lesson media" />
                       </div>
                     </div>
-                    <Button size="sm" variant="outline">Upload</Button>
-                  </div>
-                </Panel>
-              </section>
+                    {recentMedia.length ? (
+                      <div className="grid gap-3">
+                        {recentMedia.slice(0, 3).map((media) => (
+                          <MediaRow key={media.id} media={media} />
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyState text="No media assets uploaded yet." />
+                    )}
+                  </Panel>
+                </section>
+              )}
 
-              <section className="grid gap-5 xl:grid-cols-[0.85fr_1.6fr]">
-                <Panel title="My Learning" actionLabel="View all" actionTo="/me/courses">
-                  {recentLearning.length ? (
-                    <div className="grid gap-5">
-                      {recentLearning.map((course) => (
-                        <LearningRow key={course.enrollmentId} course={course} />
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState text={canLearn ? 'No enrolled courses yet.' : 'Student learning data is not available for this role.'} />
-                  )}
-                </Panel>
-
-                <Panel title="Lesson Preview">
+              {canManageCourses ? (
+                <section className="grid gap-5">
+                  <Panel title="Lesson Assets">
                   {lessonPreview ? (
-                    <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-                      <div>
-                        <h3 className="font-bold">{lessonPreview.lessonTitle}</h3>
+                    <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                        <div className="flex size-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+                          <FileTextIcon className="size-6" />
+                        </div>
+                        <h3 className="mt-5 text-lg font-bold text-slate-950">{lessonPreview.lessonTitle}</h3>
                         <p className="mt-1 text-sm text-slate-500">{lessonPreview.courseTitle}</p>
-                        <div className="mt-4 overflow-hidden rounded-2xl border bg-slate-950">
-                          <div className="relative aspect-video">
-                            <img className="h-full w-full object-cover opacity-70" src="/images/login.jpg" alt="Lesson preview" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <Link className="flex size-16 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-xl" to={`/learn/lessons/${lessonPreview.lessonId}`}>
-                                <PlayIcon className="ml-1 size-8 fill-current" />
-                              </Link>
-                            </div>
+                        <div className="mt-5 grid gap-3 text-sm">
+                          <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
+                            <span className="text-slate-500">Duration</span>
+                            <span className="font-semibold text-slate-950">{formatDuration(lessonPreview.durationSeconds)}</span>
                           </div>
-                          <div className="flex items-center justify-between bg-white px-4 py-3 text-sm text-slate-600">
-                            <span>▶</span>
-                            <span>{formatDuration(lessonPreview.durationSeconds)}</span>
-                            <span>1x</span>
+                          <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3">
+                            <span className="text-slate-500">Lesson ID</span>
+                            <span className="font-semibold text-slate-950">#{lessonPreview.lessonId}</span>
                           </div>
                         </div>
+                        <Button className="mt-5 rounded-xl" variant="outline" asChild>
+                          <Link to={`/courses/${lessonPreview.courseId}/lessons`}>Manage lesson</Link>
+                        </Button>
                       </div>
-                      <div>
-                        <div className="mb-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-sm font-bold">
-                            <Badge className="rounded-md px-1.5">CC</Badge>
-                            Lesson assets
-                          </div>
-                          <MoreVerticalIcon className="size-5 text-slate-400" />
+
+                      <div className="grid content-start gap-3">
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-950">
+                          <Badge className="rounded-md px-1.5">CC</Badge>
+                          Bound assets
                         </div>
-                        <div className="grid gap-4 text-sm">
-                          <SubtitleLine time="Audio" text={lessonPreview.audioFileId ? `File #${lessonPreview.audioFileId}` : 'No audio bound'} active={Boolean(lessonPreview.audioFileId)} />
-                          <SubtitleLine time="Video" text={lessonPreview.videoFileId ? `File #${lessonPreview.videoFileId}` : 'No video bound'} active={Boolean(lessonPreview.videoFileId)} />
-                          <SubtitleLine time="Subtitle" text={lessonPreview.subtitleFileId ? `File #${lessonPreview.subtitleFileId}` : 'No subtitle bound'} active={Boolean(lessonPreview.subtitleFileId)} />
-                        </div>
+                        <AssetStatusRow label="Audio" fileId={lessonPreview.audioFileId} />
+                        <AssetStatusRow label="Video" fileId={lessonPreview.videoFileId} />
+                        <AssetStatusRow label="Subtitle" fileId={lessonPreview.subtitleFileId} />
                       </div>
                     </div>
                   ) : (
                     <EmptyState text="No lesson preview available yet." />
                   )}
-                </Panel>
-              </section>
+                  </Panel>
+                </section>
+              ) : null}
             </div>
 
-            <Panel title="Recent Activity" actionLabel="View all">
+            {canManageCourses ? (
+              <Panel title="Recent Activity" className="2xl:h-[520px] 2xl:overflow-hidden">
               {recentActivities.length ? (
-                <div className="grid gap-1">
-                  {recentActivities.map((activity) => (
+                <div className="grid gap-2">
+                  {recentActivities.slice(0, 5).map((activity) => (
                     <ActivityItem key={`${activity.type}-${activity.occurredAt}-${activity.description}`} activity={activity} />
                   ))}
                 </div>
               ) : (
                 <EmptyState text="No recent activity yet." />
               )}
-              <Button className="mt-8 w-full rounded-xl" variant="outline">
-                View all activity
-              </Button>
-            </Panel>
+              </Panel>
+            ) : null}
       </div>
     </WorkspaceLayout>
   )
@@ -265,15 +307,17 @@ function Panel({
   title,
   actionLabel,
   actionTo,
+  className = '',
   children,
 }: {
   title: string
   actionLabel?: string
   actionTo?: string
+  className?: string
   children: React.ReactNode
 }) {
   return (
-    <Card className="rounded-3xl border-slate-200/80 bg-white p-5 shadow-[0_18px_48px_rgba(15,23,42,0.06)]">
+    <Card className={`rounded-3xl border-slate-200/80 bg-white p-5 shadow-[0_18px_48px_rgba(15,23,42,0.06)] ${className}`}>
       <div className="mb-5 flex items-center justify-between">
         <h2 className="font-bold">{title}</h2>
         {actionLabel ? (
@@ -294,17 +338,21 @@ function Panel({
 function CourseCard({
   course,
   canManage,
+  showStatusBadge,
 }: {
   course: DashboardCourse
   canManage: boolean
+  showStatusBadge: boolean
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border bg-white shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
       <div className="relative">
         <CourseCover fileId={course.coverFileId} title={course.title} />
-        <Badge className={`absolute right-3 top-3 rounded-lg ${getStatusClass(course.status)}`}>
-          {toTitleCase(course.status)}
-        </Badge>
+        {showStatusBadge ? (
+          <Badge className={`absolute right-3 top-3 rounded-lg ${getStatusClass(course.status)}`}>
+            {toTitleCase(course.status)}
+          </Badge>
+        ) : null}
       </div>
       <div className="p-4">
         <h3 className="line-clamp-1 font-bold">{course.title}</h3>
@@ -321,19 +369,11 @@ function CourseCard({
             {course.enrollmentCount} Enrollments
           </span>
         </div>
-        <div className="mt-5 flex items-center gap-3">
-          <Button className="h-9 flex-1 rounded-xl" variant="outline" asChild>
+        <div className="mt-5">
+          <Button className="h-9 w-full rounded-xl" asChild>
             <Link to={canManage ? `/courses/${course.id}/lessons` : `/learn/courses/${course.id}`}>
-              {canManage ? 'Edit' : 'Open'}
+              {canManage ? 'Manage' : 'Open'}
             </Link>
-          </Button>
-          <Button className="h-9 flex-1 rounded-xl" asChild>
-            <Link to={canManage ? `/courses/${course.id}/lessons` : `/learn/courses/${course.id}`}>
-              View
-            </Link>
-          </Button>
-          <Button className="size-9 rounded-xl" variant="ghost">
-            <MoreVerticalIcon className="size-4" />
           </Button>
         </div>
       </div>
@@ -370,18 +410,17 @@ function MediaRow({ media }: { media: DashboardMedia }) {
   const { icon, toneClass } = getMediaMeta(media.assetType)
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border p-3">
-      <div className={`flex size-11 items-center justify-center rounded-xl ${toneClass}`}>
-        <span className="[&>svg]:size-5">{icon}</span>
+    <div className="grid gap-3 rounded-2xl border p-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${toneClass}`}>
+          <span className="[&>svg]:size-5">{icon}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-bold">{media.originalName}</div>
+          <div className="truncate text-xs text-slate-500">{toTitleCase(media.assetType.replaceAll('_', ' '))} · {formatBytes(media.sizeBytes)}</div>
+        </div>
+        <span className="shrink-0 text-xs text-emerald-600">✓ Ready</span>
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-bold">{media.originalName}</div>
-        <div className="text-xs text-slate-500">{toTitleCase(media.assetType.replaceAll('_', ' '))} · {formatBytes(media.sizeBytes)}</div>
-      </div>
-      <span className="text-xs text-emerald-600">✓ Ready</span>
-      <Button className="h-8 rounded-lg" variant="outline" size="sm">Preview</Button>
-      <Button className="h-8 rounded-lg" variant="outline" size="sm">Replace</Button>
-      <MoreVerticalIcon className="size-4 text-slate-400" />
     </div>
   )
 }
@@ -411,21 +450,24 @@ function LearningRow({ course }: { course: DashboardLearning }) {
   )
 }
 
-function SubtitleLine({
-  time,
-  text,
-  active,
-}: {
-  time: string
-  text: string
-  active?: boolean
-}) {
+function AssetStatusRow({ label, fileId }: { label: string; fileId: number | null }) {
+  const isBound = Boolean(fileId)
+
   return (
-    <div className="grid grid-cols-[52px_1fr] gap-3">
-      <span className="text-slate-400">{time}</span>
-      <span className={`rounded-xl px-4 py-3 leading-6 ${active ? 'bg-blue-50' : ''}`}>
-        {text}
-      </span>
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <div>
+        <div className="text-sm font-bold text-slate-950">{label}</div>
+        <div className="mt-1 text-xs text-slate-500">{isBound ? `File #${fileId}` : 'Not bound'}</div>
+      </div>
+      <Badge
+        className={
+          isBound
+            ? 'rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 hover:bg-emerald-50'
+            : 'rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-100'
+        }
+      >
+        {isBound ? 'Ready' : 'Missing'}
+      </Badge>
     </div>
   )
 }
@@ -434,16 +476,16 @@ function ActivityItem({ activity }: { activity: DashboardActivity }) {
   const { icon, toneClass } = getActivityMeta(activity.type)
 
   return (
-    <div className="flex gap-4 border-b py-4 last:border-0">
-      <div className={`flex size-11 shrink-0 items-center justify-center rounded-2xl ${toneClass}`}>
-        <span className="[&>svg]:size-5">{icon}</span>
+    <div className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-3">
+      <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${toneClass}`}>
+        <span className="[&>svg]:size-4">{icon}</span>
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-sm font-bold">{activity.title}</h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="truncate text-sm font-bold">{activity.title}</h3>
           <span className="shrink-0 text-xs text-slate-400">{formatRelativeTime(activity.occurredAt)}</span>
         </div>
-        <p className="mt-1 text-sm leading-5 text-slate-500">{activity.description}</p>
+        <p className="mt-1 truncate text-sm text-slate-500">{activity.description}</p>
       </div>
     </div>
   )
