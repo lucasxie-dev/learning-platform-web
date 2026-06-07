@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BarChart3Icon,
   BookOpenIcon,
@@ -13,6 +13,7 @@ import {
   VideoIcon,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { getCurrentUser } from '@/features/auth/auth-api'
 import { getDashboard } from '@/features/dashboard/dashboard-api'
@@ -23,13 +24,16 @@ import type {
   DashboardMedia,
 } from '@/features/dashboard/types'
 import { createFileAccessUrl } from '@/features/files/file-api'
-import { listMyCourses } from '@/features/learning/learning-api'
+import { enrollCourse, listMyCourses } from '@/features/learning/learning-api'
+import { getApiErrorMessage } from '@/lib/api'
 import { WorkspaceLayout } from '@/components/layout/workspace-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
 export function DashboardPage() {
+  const queryClient = useQueryClient()
+
   const currentUserQuery = useQuery({
     queryKey: ['current-user'],
     queryFn: getCurrentUser,
@@ -62,6 +66,16 @@ export function DashboardPage() {
     queryKey: ['my-courses'],
     queryFn: () => listMyCourses(0, 100),
     enabled: canLearn,
+  })
+
+  const enrollMutation = useMutation({
+    mutationFn: enrollCourse,
+    onSuccess: () => {
+      toast.success('Course enrolled')
+      void queryClient.invalidateQueries({ queryKey: ['my-courses'] })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error)),
   })
 
   const dashboard = dashboardQuery.data
@@ -133,7 +147,11 @@ export function DashboardPage() {
                               key={course.id}
                               course={course}
                               canManage={canManageCourses}
+                              canLearn={canLearn}
+                              isEnrolled={enrolledCourseIds.has(course.id)}
+                              isEnrolling={enrollMutation.isPending}
                               showStatusBadge={canManageCourses}
+                              onEnroll={() => enrollMutation.mutate(course.id)}
                             />
                           ))}
                         </div>
@@ -158,7 +176,11 @@ export function DashboardPage() {
                             key={course.id}
                             course={course}
                             canManage={canManageCourses}
+                            canLearn={canLearn}
+                            isEnrolled={enrolledCourseIds.has(course.id)}
+                            isEnrolling={enrollMutation.isPending}
                             showStatusBadge={canManageCourses}
+                            onEnroll={() => enrollMutation.mutate(course.id)}
                           />
                         ))}
                       </div>
@@ -338,11 +360,19 @@ function Panel({
 function CourseCard({
   course,
   canManage,
+  canLearn,
+  isEnrolled,
+  isEnrolling,
   showStatusBadge,
+  onEnroll,
 }: {
   course: DashboardCourse
   canManage: boolean
+  canLearn: boolean
+  isEnrolled: boolean
+  isEnrolling: boolean
   showStatusBadge: boolean
+  onEnroll: () => void
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border bg-white shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
@@ -370,11 +400,25 @@ function CourseCard({
           </span>
         </div>
         <div className="mt-5">
-          <Button className="h-9 w-full rounded-xl" asChild>
-            <Link to={canManage ? `/courses/${course.id}/lessons` : `/learn/courses/${course.id}`}>
-              {canManage ? 'Manage' : 'Open'}
-            </Link>
-          </Button>
+          {canManage ? (
+            <Button className="h-9 w-full rounded-xl" asChild>
+              <Link to={`/courses/${course.id}/lessons`}>Manage</Link>
+            </Button>
+          ) : canLearn && !isEnrolled ? (
+            <Button
+              className="h-9 w-full rounded-xl"
+              disabled={isEnrolling}
+              variant="outline"
+              onClick={onEnroll}
+            >
+              <UserPlusIcon />
+              Enroll
+            </Button>
+          ) : (
+            <Button className="h-9 w-full rounded-xl" asChild>
+              <Link to={`/learn/courses/${course.id}`}>Open</Link>
+            </Button>
+          )}
         </div>
       </div>
     </div>

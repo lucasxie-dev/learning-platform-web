@@ -14,7 +14,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import type { CurrentUser } from '@/features/auth/types'
 import { useAuth } from '@/features/auth/auth-context'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -121,13 +120,11 @@ export function WorkspaceLayout({
             <div className="mx-auto mb-5 flex size-20 items-center justify-center rounded-3xl bg-blue-100 text-blue-600">
               <GraduationCapIcon className="size-10" />
             </div>
-            <h3 className="font-bold">Upgrade to Pro</h3>
+            <h3 className="font-bold">Advanced features</h3>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Unlock advanced reports, custom branding, and priority support.
+              Reporting, custom branding, and support workflows are available for private
+              deployments.
             </p>
-            <Button className="mt-5 w-full rounded-xl" variant="outline">
-              Upgrade Now
-            </Button>
           </div>
         </aside>
 

@@ -337,25 +337,11 @@ function CourseCatalogCard({
           </p>
         </div>
 
-        <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <BookOpenIcon className="size-3.5" />
-            Course #{course.id}
-          </span>
-          {course.publishedAt ? <span>{formatDate(course.publishedAt)}</span> : null}
-        </div>
+        {course.publishedAt ? (
+          <div className="text-xs text-slate-500">{formatDate(course.publishedAt)}</div>
+        ) : null}
 
-        <div className="flex items-center justify-between gap-3">
-          {isEnrolled ? (
-            <Badge className="rounded-lg bg-blue-50 text-blue-700 ring-1 ring-blue-100 hover:bg-blue-50">
-              Enrolled
-            </Badge>
-          ) : (
-            <Badge className="rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-100">
-              Available
-            </Badge>
-          )}
-
+        <div className="flex justify-end">
           {isEnrolled ? (
             <Button className="h-10 min-w-28 rounded-xl bg-blue-600 hover:bg-blue-700" asChild>
               <Link to={`/learn/courses/${course.id}`}>
